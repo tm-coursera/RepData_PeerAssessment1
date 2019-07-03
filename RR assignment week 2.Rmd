@@ -1,6 +1,8 @@
 ---
 title: "Coursera Reproducible Research Assignment Week 2"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 
 This report is written in a R notebook using Rstudio. 
@@ -10,13 +12,12 @@ To reproduces this notebook the following packages are called:
 ```{r results='hide'}
 library(dplyr)
 library(tidyr)
-
 ```
 
 
 The file is downloaded from the [link](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip)
 given in the assignment.
-
+na
 ```{r results='hide'}
 fileUrl <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
 download.file (fileUrl, destfile="activity.zip", method="curl")
@@ -43,12 +44,15 @@ The data is ready to proces and doens't need further processing.
 
 
 ## What is the mean total number of steps taken per day?
-The total number of steps taken is `r sumsteps$totalsteps` and is calculated as the sum of 
+The total number of steps taken is calculated as the sum of 
 the 'steps' columns. 
 
 ```{r}
 sumsteps <- summarise(dfa, totalsteps=sum(steps, na.rm=TRUE))
+sumsteps$totalsteps
 ```
+
+
 
 To review the steps by day, the data is aggregated by day. A histogram is created 
 to show the frequencies of steps taken daily.  
@@ -61,9 +65,9 @@ stepsbyday <- dfa %>%
 hist(stepsbyday$stepsbd, xlab="Steps per day", main="Histogram of daily steps")
 ```
 
-The mean (`r summarydf$meansteps`) and median (`r summarydf$mediansteps`) number
+The mean  and median  number
 of steps taken daily are determined from the dataframe 'stepsbyday' created in 
-the previous step. 
+the previous step. The values are presented in the table below. 
 
 
 ```{r}
@@ -95,13 +99,63 @@ plot(stepsby5$interval, stepsby5$meansteps, type="l", xlab="Time (by 5 min inter
      ylab="average number of steps", main="Average number of steps by time stamp")
 ```
 
-The highest amount of steps taken daily on average (`r maxsteps5`) is found at 
-time stamp `r maxinterval`. 
+The maximum amount of steps taken daily on average is found at 
+time stamp shown in the value below. 
 
 ```{r}
 maxsteps5 <- max(stepsby5$meansteps)
 maxinterval <- as.numeric(stepsby5[stepsby5$meansteps==maxsteps5,"interval"])
+maxinterval
 ```
 
 
 
+
+##Impute missing values
+
+The summary of the data at the beginning of the document showed that only the 
+variable steps contained NAs. The number of NAs in the dataset is shown below
+
+```{r}
+summarise(dfa, naCount=sum(is.na(steps)))
+```
+
+A simple approach to impute the missing values would be to assign the average value
+of steps for the interval timestamp.
+
+```{r}
+dfaImputed <- dfa %>%
+        left_join(y=stepsby5, by=c("interval"="interval")) %>%
+        mutate(steps = as.double(steps))%>%
+        mutate(steps = if_else(!is.na(steps), steps, meansteps))
+
+summary(dfaImputed)
+```
+
+With the new dataset a new histogram can be drawn..
+
+```{r}
+stepsbydayImputed <- dfaImputed %>%
+        group_by(date) %>%
+        summarise(stepsbd=sum(steps, na.rm = TRUE))
+
+hist(stepsbydayImputed$stepsbd, xlab="Steps per day", main="Histogram of daily steps
+     with missing data imputed")
+```
+
+The imputation clearly affects the pattern of daily stepsas does it affects the 
+mean and median ammount of steps taken per day, as shown in the table below.
+
+
+```{r}
+summarydfImputed <- summarise(stepsbydayImputed,
+        totalstepsImp=sum(stepsbd),
+        meanstepsImp=mean(stepsbd),
+        medianstepsImp=median(stepsbd))
+
+summarydfImputed
+
+```
+
+Comparing the raw and the new imputed dataset, the mean increases with 
+`r summarydf$meansteps-summarydfImputed$meanstepsImp` and 
