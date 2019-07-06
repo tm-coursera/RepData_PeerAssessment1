@@ -1,23 +1,39 @@
 ---
-title: "Coursera Reproducible Research Assignment Week 2"
-output:
-  html_document:
-    df_print: paged
+title: "R Notebook"
+output: 
+    html_notebook: default
+    html_document: default
+    keep_md: true
 ---
+
+```{r}
+#original template code for markdown adjusted for the use with Rnotebook
+#---
+#title: "Reproducible Research: Peer Assessment 1"
+#output: 
+#  html_document:
+#    keep_md: true
+#---
+
+```
 
 This report is written in a R notebook using Rstudio. 
 
-To reproduces this notebook the following packages are called:
+To reproduces this notebook the following packages are called (you may need Rtools 
+to correctly compile the required packages if not allready installed):
 
 ```{r results='hide'}
 library(dplyr)
 library(tidyr)
+library(lubridate)
+library(lattice)
+library(kableExtra)
 ```
 
 
 The file is downloaded from the [link](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip)
 given in the assignment.
-na
+
 ```{r results='hide'}
 fileUrl <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
 download.file (fileUrl, destfile="activity.zip", method="curl")
@@ -132,7 +148,8 @@ dfaImputed <- dfa %>%
 summary(dfaImputed)
 ```
 
-With the new dataset a new histogram can be drawn..
+With the new dataset a new histogram can be drawn showing the frequincies of steps 
+taken per day.
 
 ```{r}
 stepsbydayImputed <- dfaImputed %>%
@@ -143,7 +160,7 @@ hist(stepsbydayImputed$stepsbd, xlab="Steps per day", main="Histogram of daily s
      with missing data imputed")
 ```
 
-The imputation clearly affects the pattern of daily stepsas does it affects the 
+The imputation clearly affects the pattern of daily steps as does it affects the 
 mean and median ammount of steps taken per day, as shown in the table below.
 
 
@@ -158,4 +175,35 @@ summarydfImputed
 ```
 
 Comparing the raw and the new imputed dataset, the mean increases with 
-`r summarydf$meansteps-summarydfImputed$meanstepsImp` and 
+`r text_spec(round(summarydfImputed$meanstepsImp-summarydf$meansteps), color="red")` and 
+the median increases with 
+`r text_spec(round(summarydfImputed$medianstepsImp-summarydf$mediansteps), color="red")`.
+
+## Are there differences in activity patterns between weekdays and weekends?
+To answer the question,  for each date it has to be determined if it is a 
+weekday or a weekend day. The function weekdays() is used to create a new variable
+called dayoftheweek, which is used to create the variable daytype.
+
+```{r}
+curr_locale <- Sys.getlocale("LC_TIME")
+dfaImputedWD <- dfaImputed %>%
+    mutate(dayoftheweek = wday(as.Date(date), label=TRUE, abbr=FALSE, locale='us'),
+           daytype = as.factor(if_else(dayoftheweek %in% c('Monday', 'Tuesday',
+                            'Wednesday', 'Thursday', 'Friday'), 'weekday',
+                            'weekend'))) %>%
+# To be able to produce the requested graph the data is again grouped and summmarized
+    group_by(interval, daytype) %>% 
+    summarize(steps=mean(steps))
+```
+
+The new dataset is used to plot the mean number of steps taken at each 
+5 min. interval during weekdays and weekend days. 
+
+```{r}
+xyplot(steps ~ interval | daytype, data=dfaImputedWD, layout=c(1,2), type=c("g", "l"),
+       main="Average number of steps by 5 minute intervals")
+```
+
+
+
+
